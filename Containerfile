@@ -3,7 +3,7 @@ FROM docker.io/library/alpine:latest
 ARG HOST_UID=1000
 ARG HOST_GID=1000
 
-RUN apk add --no-cache bash curl libgcc libstdc++ ripgrep perl-file-find-rule xz
+RUN apk add --no-cache bash curl libgcc libstdc++ ripgrep perl-file-find-rule xz python3 git
 
 # Create group and user matching host UID/GID
 RUN addgroup --gid ${HOST_GID} appuser && \
@@ -21,6 +21,7 @@ COPY --chown=appuser entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 USER appuser
+RUN tlmgr install revtext pgf textcase
 WORKDIR /app
 
 # This is needed because entrypoint does not have .local/bin in the PATH
