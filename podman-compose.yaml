@@ -32,5 +32,5 @@ services:
 volumes:
   project-name-venv-cache:
   claude-config:
-    external: true
+    external: true  # shared by all projects; claude-sandbox.sh creates it if missing
     name: claude-config

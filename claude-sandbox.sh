@@ -1,4 +1,3 @@
-bash
 #!/usr/bin/env bash
 # claude-sandbox: run Claude Code in a podman microVM sandbox for the current project.
 set -euo pipefail
@@ -6,7 +5,7 @@ set -euo pipefail
 TEMPLATE_DIR="${CLAUDE_SANDBOX_TEMPLATES:-$HOME/AI}"
 DEST_DIR=".claude-sandbox"
 COMPOSE="$DEST_DIR/podman-compose.yaml"
-FILES=(Containerfile podman-compose.yaml entrypoint.sh)
+FILES=(Containerfile podman-compose.yaml)
 BUILD=0
 
 usage() {
@@ -54,6 +53,11 @@ elif [ ! -f "$COMPOSE" ]; then
   echo "No sandbox in this folder yet. Run: $(basename "$0") --build" >&2
   exit 1
 fi
+
+# Claude's login and settings volume, shared by all projects. The compose file
+# marks it external so that `down -v` in one project cannot delete it, which
+# also means podman-compose will not create it.
+podman volume exists claude-config || podman volume create claude-config >/dev/null
 
 # --rm removes the container when Claude exits, so no cleanup step is needed.
 exec podman-compose -f "$COMPOSE" run --rm claude

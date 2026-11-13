@@ -15,16 +15,10 @@ RUN mkdir -p /home/appuser/.claude && chown appuser:appuser /home/appuser/.claud
 USER appuser
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN curl -fsSL https://tinytex.yihui.org/install-bin-unix.sh | sh
-USER root
 
-COPY --chown=appuser entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-USER appuser
 #RUN tlmgr install revtext pgf textcase
 WORKDIR /app
 
-# This is needed because entrypoint does not have .local/bin in the PATH
+# Claude Code installs to ~/.local/bin, which is not on the default PATH
 ENV PATH="/home/appuser/.local/bin:$PATH"
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/sh"]
