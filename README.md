@@ -2,9 +2,34 @@
 
 Based on [Sandbox AI coding agents with microVMs on Fedora Linux](https://fedoramagazine.org/sandbox-ai-coding-agents-with-microvms-on-fedora-linux/) and [Docker/Podman AI CLI tools safe environment](https://www.bitdoze.com/docker-podman-ai-cli-tools-safe-environment/). Also contains tinytex to compile documents.
 
-For now, these are just the files. Will be updated with a proper installable shell script to copy and run.
+## Install with `claude-sandbox.sh`
 
-## Usage
+You need `podman`, `podman-compose` and the krun runtime (`crun-krun` on Fedora). The compose file runs the container in a libkrun microVM.
+
+Clone the repository and put the script on your `PATH` (here `~/.local/bin`):
+
+```bash
+git clone https://github.com/audunth/claude-sandbox.git ~/claude-sandbox
+chmod +x ~/claude-sandbox/claude-sandbox.sh
+ln -s ~/claude-sandbox/claude-sandbox.sh ~/.local/bin/claude-sandbox
+```
+
+By default the script copies the templates from `~/AI`. Point it at the clone instead, e.g. in `~/.bashrc`:
+
+```bash
+export CLAUDE_SANDBOX_TEMPLATES="$HOME/claude-sandbox"
+```
+
+Then run it from a project folder (it refuses to run in `$HOME`):
+
+```bash
+claude-sandbox --build   # first time, or after updating the templates
+claude-sandbox           # later runs
+```
+
+`--build` copies `Containerfile` and `podman-compose.yaml` into `.claude-sandbox/` in the project, overwriting any earlier copies, and builds the image. Every run creates the `claude-config` volume if it is missing, then opens a shell in the container at the project's path. Start Claude with `claude` and log in the first time. The login is stored in `claude-config` and shared by all projects. The container is removed when you exit.
+
+## Manual usage (without the script)
 
 Run all commands from the project folder. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
 
@@ -68,7 +93,7 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .cla
 
 - [ ] Start Claude directly and forward arguments (`run --rm claude claude "$@"`) instead of landing in `/bin/sh`.
 - [ ] Default the template folder to the script's own location (`$(dirname "$(readlink -f "$0")")`) instead of `$HOME/AI`.
-- [ ] Update the README: `.claude-sandbox` (not `.agent-sandbox`), `claude-sandbox.sh` usage, creating `claude-config`, and requirements (`crun-krun`, libkrun >= 1.8).
+- [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.
 
 ## Not installed yet (consider if needed)
 
