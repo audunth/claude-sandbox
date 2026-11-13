@@ -6,19 +6,34 @@ For now, these are just the files. Will be updated with a proper installable she
 
 ## Usage
 
-Copy `Containerfile`, `entrypoint.sh` and `podman-compose.yaml` to an `.agent-sandbox` directory in your project.
+Run all commands from the project folder. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
+
+Copy `Containerfile`, `entrypoint.sh` and `podman-compose.yaml` to a `.claude-sandbox` directory in your project:
+
+```bash
+mkdir -p .claude-sandbox
+cp /path/to/claude-sandbox/{Containerfile,entrypoint.sh,podman-compose.yaml} .claude-sandbox/
+```
+
+Create the volume that stores Claude's login and settings (once per machine, shared by all projects):
+
+```bash
+podman volume exists claude-config || podman volume create claude-config
+```
 
 Build with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) podman-compose -f .agent-sandbox/podman-compose.yaml build
+HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .claude-sandbox/podman-compose.yaml build
 ```
 
-Run with (from the project folder)
+Run with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .agent-sandbox/podman-compose.yaml run --rm claude
+HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .claude-sandbox/podman-compose.yaml run --rm claude
 ```
+
+`PROJECT_DIR` is needed for the build too: podman-compose expands every variable in the file before running any command.
 
 ## TODO
 
