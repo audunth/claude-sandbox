@@ -1,4 +1,3 @@
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 FROM docker.io/library/debian:trixie-slim
 
 ARG HOST_UID=1000
@@ -23,11 +22,14 @@ USER appuser
 ENV PATH="/home/appuser/.local/bin:$PATH"
 RUN mkdir -p /home/appuser/.local/bin
 
+# The piped installs run in bash with pipefail, so a failed download fails the
+# build. A SHELL instruction would do this for every step, but podman builds
+# OCI images, which cannot store SHELL, so buildah warns at every step after it.
 # TinyTeX before Claude, so Claude updates reuse the TinyTeX layer
-RUN curl -fsSL https://tinytex.yihui.org/install-bin-unix.sh | sh
+RUN bash -o pipefail -c 'curl -fsSL https://tinytex.yihui.org/install-bin-unix.sh | sh'
 RUN tlmgr install revtex pgf textcase
-RUN curl -fsSL https://claude.ai/install.sh | bash
-RUN curl -fsSL https://astral.sh/uv/install.sh | sh
+RUN bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash'
+RUN bash -o pipefail -c 'curl -fsSL https://astral.sh/uv/install.sh | sh'
 
 WORKDIR /app
 
