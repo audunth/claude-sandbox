@@ -14,22 +14,32 @@ SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SANDBOX_DIR="${CLAUDE_SANDBOX_DIR:-$SCRIPT_DIR}"
 COMPOSE="$SANDBOX_DIR/podman-compose.yaml"
 BUILD=0
+CMD=(claude)
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--build]
+Usage: $(basename "$0") [--build] [--shell] [--] [ARGS...]
 
-  (no options)  run the sandbox image
+Start Claude Code in the sandbox. ARGS are passed on to claude.
+
   --build       build (or rebuild) the image from $SANDBOX_DIR, then run
+  --shell       open bash instead of claude (ARGS are passed on to bash)
+  --            end of options, e.g. '$(basename "$0") -- --help' for claude's help
+  -h, --help    show this help
 EOF
 }
 
-for arg in "$@"; do
-  case "$arg" in
+# Our options come first. Everything from the first other argument on is
+# passed on to the command run in the container.
+while [ $# -gt 0 ]; do
+  case "$1" in
     --build)   BUILD=1 ;;
+    --shell)   CMD=(bash) ;;
     -h|--help) usage; exit 0 ;;
-    *)         echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
+    --)        shift; break ;;
+    *)         break ;;
   esac
+  shift
 done
 
 if [ ! -f "$COMPOSE" ]; then
@@ -87,6 +97,8 @@ else
   esac
 fi
 
+# The variables below are needed for the build too: podman-compose expands
+# every variable in the compose file before running any command.
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
 # Mounted at the same path inside the container (see podman-compose.yaml).
 export PROJECT_DIR="$here"
@@ -104,4 +116,4 @@ podman volume exists claude-config || podman volume create claude-config >/dev/n
 
 # --rm removes the container when Claude exits, so no cleanup step is needed.
 # podman-compose builds the image here if it does not exist yet.
-exec podman-compose -f "$COMPOSE" run --rm claude
+exec podman-compose -f "$COMPOSE" run --rm claude "${CMD[@]}" "$@"
