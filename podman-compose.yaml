@@ -7,8 +7,9 @@ services:
       krun.cpus: "4" # At least 4
     user: "${HOST_UID}:${HOST_GID}"
     userns_mode: keep-id  # optional, for rootless host
+    image: localhost/claude-sandbox:latest  # one image, shared by all projects
     build:
-      context: .
+      context: .  # the folder holding this file, not the project
       args:
         HOST_UID: "${HOST_UID}"  # use UID and GID from the host so that files created in the container have correct permissions
         HOST_GID: "${HOST_GID}"
@@ -17,7 +18,6 @@ services:
       # settings per project (it keys them by path in ~/.claude/projects/).
       - ${PROJECT_DIR:?set PROJECT_DIR to the absolute project path}:${PROJECT_DIR}:z
       - ${PROJECT_DIR}/.git:${PROJECT_DIR}/.git:ro,z
-      - ${PROJECT_DIR}/.claude-sandbox:${PROJECT_DIR}/.claude-sandbox:ro,z
       - project-name-venv-cache:/venv:U,z
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
     working_dir: ${PROJECT_DIR}

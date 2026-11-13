@@ -11,34 +11,27 @@ Clone the repository and put the script on your `PATH` (here `~/.local/bin`):
 ```bash
 git clone https://github.com/audunth/claude-sandbox.git ~/claude-sandbox
 chmod +x ~/claude-sandbox/claude-sandbox.sh
-ln -s ~/claude-sandbox/claude-sandbox.sh ~/.local/bin/claude-sandbox
+ln -s ~/claude-sandbox/claude-sandbox.sh ~/.local/bin/csbx
 ```
 
-By default the script copies the templates from `~/AI`. Point it at the clone instead, e.g. in `~/.bashrc`:
+The script uses the `Containerfile` and `podman-compose.yaml` in its own folder (it follows the symlink). To use files from another folder, set `CLAUDE_SANDBOX_DIR` to that folder.
+
+Then run it from a project folder (it only runs in folders below `$HOME`, not in `$HOME` itself):
 
 ```bash
-export CLAUDE_SANDBOX_TEMPLATES="$HOME/claude-sandbox"
+csbx --build   # after changing the Containerfile
+csbx           # every other run
 ```
 
-Then run it from a project folder (it refuses to run in `$HOME`):
+Nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Every run creates the `claude-config` volume if it is missing, then opens a shell in the container at the project's path. Start Claude with `claude` and log in the first time. The login is stored in `claude-config` and shared by all projects. The container is removed when you exit.
 
-```bash
-claude-sandbox --build   # first time, or after updating the templates
-claude-sandbox           # later runs
-```
-
-`--build` copies `Containerfile` and `podman-compose.yaml` into `.claude-sandbox/` in the project, overwriting any earlier copies, and builds the image. Every run creates the `claude-config` volume if it is missing, then opens a shell in the container at the project's path. Start Claude with `claude` and log in the first time. The login is stored in `claude-config` and shared by all projects. The container is removed when you exit.
+The sandbox files stay outside the project, so the agent cannot change them. The exception is when the project is this repository: an edited `podman-compose.yaml` takes effect on the next run.
 
 ## Manual usage (without the script)
 
 Run all commands from the project folder. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
 
-Copy `Containerfile` and `podman-compose.yaml` to a `.claude-sandbox` directory in your project:
-
-```bash
-mkdir -p .claude-sandbox
-cp /path/to/claude-sandbox/{Containerfile,podman-compose.yaml} .claude-sandbox/
-```
+The compose file is used from the cloned repository, here `~/claude-sandbox`. Nothing is copied into the project.
 
 Create the volume that stores Claude's login and settings (once per machine, shared by all projects):
 
@@ -49,13 +42,13 @@ podman volume exists claude-config || podman volume create claude-config
 Build with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .claude-sandbox/podman-compose.yaml build
+HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/claude-sandbox/podman-compose.yaml build
 ```
 
 Run with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .claude-sandbox/podman-compose.yaml run --rm claude
+HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/claude-sandbox/podman-compose.yaml run --rm claude
 ```
 
 `PROJECT_DIR` is needed for the build too: podman-compose expands every variable in the file before running any command.
@@ -68,12 +61,12 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .cla
 - [x] Mount each project at its own path instead of `/app`. Claude keys memory, `/resume` history and project settings by path (`~/.claude/projects/-app/`), so all projects currently share them through the `claude-config` volume. Mirror the host path, e.g. `${PROJECT_DIR}:${PROJECT_DIR}:z` with `working_dir: ${PROJECT_DIR}` and `export PROJECT_DIR="$(pwd -P)"` in the script.
 - [x] Create the external `claude-config` volume if it is missing (`podman volume exists claude-config || podman volume create claude-config`). The first run fails without it.
 - [x] Fix or remove the root branch in `entrypoint.sh`. It calls `su-exec`, which is not installed (unused today because compose sets `user:`). Removed `entrypoint.sh` altogether: without that branch it only ran `exec "$@"`.
-- [ ] Give each project its own compose project name (`podman-compose -p "$(basename "$PWD")"`). Otherwise every project is probably named after the `.claude-sandbox` folder and shares the image and venv volume. Drop the `project-name-*` placeholders.
+- [ ] Give each project its own compose project name (`podman-compose -p "$(basename "$PWD")"`). Otherwise every project is named after the folder holding the compose file and shares the venv volume. The image is shared on purpose (`image:` in the compose file). Drop the `project-name-*` placeholders.
 
 ### Isolation
 
 - [x] Stop the agent from editing its own sandbox config. `.claude-sandbox/podman-compose.yaml` is inside the mounted project and is read on every run. Build one image from this repo and keep the compose file outside the project, or mount `.claude-sandbox` read-only.
-- [ ] .claude-sandbox is read-only. Consider hiding it or doing most outside the project.
+- [x] Remove `.claude-sandbox` from the project. The script now uses the compose file and Containerfile from its own folder and builds one shared image.
 - [ ] Guard against code planted for the host: `.git/hooks`, `.git/config` (`core.hooksPath`, `core.fsmonitor`), Makefiles, `.envrc`. At least mount `.git/hooks` read-only, or document the risk.
 - [x] Drop `U` from the project bind mount (keep it on named volumes). It recursively chowns the host project tree.
 - [ ] Add hardening: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, `pids_limit`. Check how krun handles these.
@@ -93,7 +86,7 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .cla
 ### Script and README
 
 - [ ] Start Claude directly and forward arguments (`run --rm claude claude "$@"`) instead of landing in `/bin/sh`.
-- [ ] Default the template folder to the script's own location (`$(dirname "$(readlink -f "$0")")`) instead of `$HOME/AI`.
+- [x] Default the template folder to the script's own location (`$(dirname "$(readlink -f "$0")")`) instead of `$HOME/AI`.
 - [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.
 
 ## Not installed yet (consider if needed)

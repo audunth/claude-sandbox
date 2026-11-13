@@ -8,21 +8,19 @@ if [ "$(id -u)" -eq 0 ]; then
   exit 1
 fi
 
-# Should own the current folder
-[ -O "$here" ] || { echo "You do not own $here." >&2; exit 1; }
-
-TEMPLATE_DIR="${CLAUDE_SANDBOX_TEMPLATES:-$HOME/AI}"
-DEST_DIR=".claude-sandbox"
-COMPOSE="$DEST_DIR/podman-compose.yaml"
-FILES=(Containerfile podman-compose.yaml)
+# The Containerfile and compose file are used in place, from outside the
+# project, so nothing is written to the project and the agent cannot edit them.
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+SANDBOX_DIR="${CLAUDE_SANDBOX_DIR:-$SCRIPT_DIR}"
+COMPOSE="$SANDBOX_DIR/podman-compose.yaml"
 BUILD=0
 
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [--build]
 
-  (no options)  run the existing sandbox image
-  --build       copy the templates into $DEST_DIR, build the image, then run
+  (no options)  run the sandbox image
+  --build       build (or rebuild) the image from $SANDBOX_DIR, then run
 EOF
 }
 
@@ -34,10 +32,19 @@ for arg in "$@"; do
   esac
 done
 
+if [ ! -f "$COMPOSE" ]; then
+  echo "Missing $COMPOSE (set CLAUDE_SANDBOX_DIR to the folder holding it)." >&2
+  exit 1
+fi
+
 # The compose file mounts the current folder read-write, so only allow
 # real subfolders of our own $HOME (not $HOME itself, its parents, or other homes).
 home="$(cd "$HOME" && pwd -P)"
 here="$(pwd -P)"
+
+# Should own the current folder
+[ -O "$here" ] || { echo "You do not own $here." >&2; exit 1; }
+
 case "$here/" in
   "$home"/?*/) ;;  # strictly below $HOME: OK
   *)
@@ -48,25 +55,10 @@ esac
 
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
 # Mounted at the same path inside the container (see podman-compose.yaml).
-export PROJECT_DIR="$(pwd -P)"
+export PROJECT_DIR="$here"
 
 if [ "$BUILD" -eq 1 ]; then
-  for f in "${FILES[@]}"; do
-    if [ ! -f "$TEMPLATE_DIR/$f" ]; then
-      echo "Missing template: $TEMPLATE_DIR/$f" >&2
-      exit 1
-    fi
-  done
-
-  mkdir -p "$DEST_DIR"
-  for f in "${FILES[@]}"; do
-    cp "$TEMPLATE_DIR/$f" "$DEST_DIR/$f"
-  done
-
   podman-compose -f "$COMPOSE" build
-elif [ ! -f "$COMPOSE" ]; then
-  echo "No sandbox in this folder yet. Run: $(basename "$0") --build" >&2
-  exit 1
 fi
 
 # Claude's login and settings volume, shared by all projects. The compose file
@@ -75,4 +67,5 @@ fi
 podman volume exists claude-config || podman volume create claude-config >/dev/null
 
 # --rm removes the container when Claude exits, so no cleanup step is needed.
+# podman-compose builds the image here if it does not exist yet.
 exec podman-compose -f "$COMPOSE" run --rm claude
