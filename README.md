@@ -4,7 +4,7 @@ Based on [Sandbox AI coding agents with microVMs on Fedora Linux](https://fedora
 
 ## Install and run
 
-You need `git`, `podman`, `podman-compose` and the krun runtime (`crun-krun` on Fedora). The compose file runs the container in a libkrun microVM.
+You need `git`, `podman`, `podman-compose` and the krun runtime (`crun-krun` on Fedora). The compose file runs the container in a libkrun microVM with 4 CPUs and 4 GB RAM.
 
 Clone the repository and put the script on your `PATH` (here `~/.local/bin`):
 
