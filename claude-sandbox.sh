@@ -90,6 +90,8 @@ fi
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
 # Mounted at the same path inside the container (see podman-compose.yaml).
 export PROJECT_DIR="$here"
+# The container's own .venv for this project, named after the project's path.
+export VENV_VOLUME="claude-sandbox-venv$(printf %s "$here" | tr -c 'A-Za-z0-9_.-' '-')"
 
 if [ "$BUILD" -eq 1 ]; then
   podman-compose -f "$COMPOSE" build

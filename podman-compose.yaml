@@ -1,6 +1,5 @@
 services:
   claude:
-    container_name: project-name-claude
     annotations:
       run.oci.handler: krun
       krun.ram_mib: "4096" # At least 4096
@@ -20,23 +19,32 @@ services:
       # Read-only, so the agent cannot commit or plant hooks that run on the host.
       # The project must have a .git, or podman-compose creates an empty one.
       - ${PROJECT_DIR}/.git:${PROJECT_DIR}/.git:ro,z
-      - project-name-venv-cache:/venv:U,z
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
+      # The container's own .venv, in a volume per project. It hides the host's
+      # .venv, so the agent cannot change it and the host never runs what the
+      # agent installs. If the host has no .venv, an empty one is created as the
+      # mount point.
+      - venv:${PROJECT_DIR}/.venv:U,z
+      - uv:/uv:U,z  # uv's cache and Python installs, shared by all projects
     working_dir: ${PROJECT_DIR}
     stdin_open: true
     tty: true
     environment:
       - CLAUDE_CONFIG_DIR=/home/appuser/.claude
-      - UV_LINK_MODE=copy
-      - UV_PROJECT_ENVIRONMENT=/venv/env  # This is inside the cached volume
-      - UV_PYTHON_INSTALL_DIR=/venv/python  # So that uv-managed python installations are not in home but cached in /venv
+      - UV_CACHE_DIR=/uv/cache
+      - UV_PYTHON_INSTALL_DIR=/uv/python  # kept, so .venv links to Pythons uv downloaded stay valid
+      - UV_LINK_MODE=copy  # the cache and .venv are on different volumes
+      - POETRY_VIRTUALENVS_IN_PROJECT=true  # poetry uses .venv too (uv and pdm do by default)
       - TERM=xterm-256color
       - COLORTERM=truecolor
     security_opt:
       - no-new-privileges:true
 
 volumes:
-  project-name-venv-cache:
+  venv:
+    name: ${VENV_VOLUME:?set VENV_VOLUME to a volume name for this project}
+  uv:
+    name: claude-sandbox-uv
   claude-config:
     external: true  # shared by all projects; claude-sandbox.sh creates it if missing
     name: claude-config

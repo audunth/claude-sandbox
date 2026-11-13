@@ -29,6 +29,22 @@ Apart from `git init`, nothing is written to the project folder. All projects sh
 
 The sandbox files stay outside the project, so the agent cannot change them. The exception is when the project is this repository: an edited `podman-compose.yaml` takes effect on the next run.
 
+### Python environments
+
+Keep the dependencies in the project (`pyproject.toml`, `requirements.txt`, a lock file such as `uv.lock`), and use separate environments on the host and in the container. In the container, `.venv` is a volume of its own for each project, mounted over the project's `.venv`. So the agent never sees or changes the host's `.venv`, and the host never runs anything the agent installed. If the project has no `.venv`, an empty one appears as the mount point.
+
+The image has Python 3.13 (with `venv`) and uv. In the container, for example:
+
+```bash
+uv sync                                                # pyproject.toml, uv.lock
+uv venv && uv pip install -r requirements.txt          # requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -e .    # plain pip
+```
+
+Poetry and PDM also use `.venv` in the container (for example `uvx poetry install`). The environment is kept between runs. uv's cache and the Pythons it downloads are kept in the `claude-sandbox-uv` volume, shared by all projects.
+
+Each project's environment is a volume named after the project's path, such as `claude-sandbox-venv-home-me-myproject`. `podman volume ls` lists them, and `podman volume rm` deletes one, for example after deleting the project.
+
 ## Manual usage (without the script)
 
 Run all commands from the top of the project's git repository (run `git init` first if needed). Its `.git` is mounted read-only, and podman-compose would create an empty `.git` folder if it were missing. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
@@ -41,19 +57,26 @@ Create the volume that stores Claude's login and settings (once per machine, sha
 podman volume exists claude-config || podman volume create claude-config
 ```
 
+Set the variables the compose file needs. `VENV_VOLUME` names the volume that holds the container's `.venv` for this project:
+
+```bash
+export HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P)
+export VENV_VOLUME="claude-sandbox-venv$(pwd -P | tr / -)"
+```
+
 Build with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/claude-sandbox/podman-compose.yaml build
+podman-compose -f ~/claude-sandbox/podman-compose.yaml build
 ```
 
 Run with
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/claude-sandbox/podman-compose.yaml run --rm claude
+podman-compose -f ~/claude-sandbox/podman-compose.yaml run --rm claude
 ```
 
-`PROJECT_DIR` is needed for the build too: podman-compose expands every variable in the file before running any command.
+The variables are needed for the build too: podman-compose expands every variable in the file before running any command.
 
 ## TODO
 
@@ -63,7 +86,7 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/cl
 - [x] Mount each project at its own path instead of `/app`. Claude keys memory, `/resume` history and project settings by path (`~/.claude/projects/-app/`), so all projects currently share them through the `claude-config` volume. Mirror the host path, e.g. `${PROJECT_DIR}:${PROJECT_DIR}:z` with `working_dir: ${PROJECT_DIR}` and `export PROJECT_DIR="$(pwd -P)"` in the script.
 - [x] Create the external `claude-config` volume if it is missing (`podman volume exists claude-config || podman volume create claude-config`). The first run fails without it.
 - [x] Fix or remove the root branch in `entrypoint.sh`. It calls `su-exec`, which is not installed (unused today because compose sets `user:`). Removed `entrypoint.sh` altogether: without that branch it only ran `exec "$@"`.
-- [ ] Give each project its own compose project name (`podman-compose -p "$(basename "$PWD")"`). Otherwise every project is named after the folder holding the compose file and shares the venv volume. The image is shared on purpose (`image:` in the compose file). Drop the `project-name-*` placeholders.
+- [x] Give each project its own compose project name. No longer needed: each project's `.venv` volume is named after its path, `run` names each container itself, and the image is shared on purpose (`image:` in the compose file). Dropped the `project-name-*` placeholders.
 
 ### Isolation
 
@@ -76,24 +99,22 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/cl
 
 ### Containerfile
 
-- [ ] Pin the base image (`alpine:3.24`) instead of `latest`.
-- [ ] Set `ENV USE_BUILTIN_RIPGREP=0`, as Claude Code's docs recommend for Alpine/musl.
+- [x] Switch from `alpine:latest` to `debian:trixie-slim` (glibc), so compiled Python packages, conda/pixi environments and Claude Code's bundled ripgrep work. This also pins the base image and makes `USE_BUILTIN_RIPGREP=0` unnecessary.
 - [ ] Set `DISABLE_AUTOUPDATER=1` and rebuild to upgrade. Auto-updates are lost with `--rm` and downloaded again every session.
-- [ ] Bake TeX packages into the image (`tlmgr install revtex pgf textcase`). Note: `revtex`, not `revtext`.
-- [ ] Install TinyTeX before Claude so Claude updates reuse the TinyTeX layer.
-- [ ] Add GNU tools that BusyBox lacks options for: `coreutils findutils grep sed diffutils less jq make` (maybe `poppler-utils` for PDFs).
-- [ ] Either install uv (`apk add uv`) or remove the `UV_*` variables and `/venv` volume.
+- [x] Bake TeX packages into the image (`tlmgr install revtex pgf textcase`). Note: `revtex`, not `revtext`.
+- [x] Install TinyTeX before Claude so Claude updates reuse the TinyTeX layer.
+- [ ] Consider adding `less jq make` (maybe `poppler-utils` for PDFs). Debian already has the GNU core tools.
+- [x] Install uv, and give the container its own `.venv` in a volume per project (see Python environments).
 - [ ] Set a git identity in the container (`GIT_AUTHOR_*`/`GIT_COMMITTER_*` env or a read-only gitconfig). Keep SSH keys out so the agent cannot push.
 
 ### Script and README
 
-- [ ] Start Claude directly and forward arguments (`run --rm claude claude "$@"`) instead of landing in `/bin/sh`.
+- [ ] Start Claude directly and forward arguments (`run --rm claude claude "$@"`) instead of landing in a shell.
 - [x] Default the template folder to the script's own location (`$(dirname "$(readlink -f "$0")")`) instead of `$HOME/AI`.
 - [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.
 
 ## Not installed yet (consider if needed)
 
-- uv
 - pandoc (using just .tex for now)
 - any compilers (rust, c++, julia)
 
