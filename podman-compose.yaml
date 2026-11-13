@@ -13,10 +13,12 @@ services:
         HOST_UID: "${HOST_UID}"  # use UID and GID from the host so that files created in the container have correct permissions
         HOST_GID: "${HOST_GID}"
     volumes:
-      - ../:/app:U,z  # bind mount your project
+      # Mount the project at its host path, so Claude keeps memory, history and
+      # settings per project (it keys them by path in ~/.claude/projects/).
+      - ${PROJECT_DIR:?set PROJECT_DIR to the absolute project path}:${PROJECT_DIR}:z
       - project-name-venv-cache:/venv:U,z
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
-    working_dir: /app
+    working_dir: ${PROJECT_DIR}
     stdin_open: true
     tty: true
     environment:
