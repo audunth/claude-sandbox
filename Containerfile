@@ -21,7 +21,7 @@ COPY --chown=appuser entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 USER appuser
-RUN tlmgr install revtext pgf textcase
+#RUN tlmgr install revtext pgf textcase
 WORKDIR /app
 
 # This is needed because entrypoint does not have .local/bin in the PATH

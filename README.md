@@ -19,7 +19,15 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) podman-compose -f .agent-sandbox/podman-comp
 
 ## Not installed yet (consider if needed)
 
-- git
-- python, uv
-- pandoc (try just .tex-files)
+- uv
+- pandoc (using just .tex for now)
 - any compilers (rust, c++, julia)
+
+
+## Inspiration
+
+https://fedoramagazine.org/sandbox-ai-coding-agents-with-microvms-on-fedora-linux/
+
+https://github.com/msehnout/agent-sandbox
+
+https://www.bitdoze.com/docker-podman-ai-cli-tools-safe-environment/
