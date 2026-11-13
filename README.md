@@ -97,6 +97,10 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/cl
 - pandoc (using just .tex for now)
 - any compilers (rust, c++, julia)
 
+## AI use
+
+Claude was actively used in writing the shell script and removing escape routes.
+
 ## Inspiration
 
 - <https://fedoramagazine.org/sandbox-ai-coding-agents-with-microvms-on-fedora-linux/>
