@@ -2,6 +2,15 @@
 # claude-sandbox: run Claude Code in a podman microVM sandbox for the current project.
 set -euo pipefail
 
+# Should not run as root
+if [ "$(id -u)" -eq 0 ]; then
+  echo "Do not run claude-sandbox as root." >&2
+  exit 1
+fi
+
+# Should own the current folder
+[ -O "$here" ] || { echo "You do not own $here." >&2; exit 1; }
+
 TEMPLATE_DIR="${CLAUDE_SANDBOX_TEMPLATES:-$HOME/AI}"
 DEST_DIR=".claude-sandbox"
 COMPOSE="$DEST_DIR/podman-compose.yaml"
@@ -25,11 +34,17 @@ for arg in "$@"; do
   esac
 done
 
-# The compose file mounts the current folder, so never run from $HOME itself.
-if [ "$(pwd -P)" = "$(cd "$HOME" && pwd -P)" ]; then
-  echo "Refusing to run in \$HOME. cd into a project folder first." >&2
-  exit 1
-fi
+# The compose file mounts the current folder read-write, so only allow
+# real subfolders of our own $HOME (not $HOME itself, its parents, or other homes).
+home="$(cd "$HOME" && pwd -P)"
+here="$(pwd -P)"
+case "$here/" in
+  "$home"/?*/) ;;  # strictly below $HOME: OK
+  *)
+    echo "Refusing to run in $here: cd into a project folder under $home first." >&2
+    exit 1
+    ;;
+esac
 
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
 # Mounted at the same path inside the container (see podman-compose.yaml).
