@@ -4,7 +4,7 @@ Based on [Sandbox AI coding agents with microVMs on Fedora Linux](https://fedora
 
 ## Install with `claude-sandbox.sh`
 
-You need `podman`, `podman-compose` and the krun runtime (`crun-krun` on Fedora). The compose file runs the container in a libkrun microVM.
+You need `git`, `podman`, `podman-compose` and the krun runtime (`crun-krun` on Fedora). The compose file runs the container in a libkrun microVM.
 
 Clone the repository and put the script on your `PATH` (here `~/.local/bin`):
 
@@ -16,20 +16,22 @@ ln -s ~/claude-sandbox/claude-sandbox.sh ~/.local/bin/csbx
 
 The script uses the `Containerfile` and `podman-compose.yaml` in its own folder (it follows the symlink). To use files from another folder, set `CLAUDE_SANDBOX_DIR` to that folder.
 
-Then run it from a project folder (it only runs in folders below `$HOME`, not in `$HOME` itself):
+Then run it from a project folder below `$HOME` (not `$HOME` itself):
 
 ```bash
 csbx --build   # after changing the Containerfile
 csbx           # every other run
 ```
 
-Nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Every run creates the `claude-config` volume if it is missing, then opens a shell in the container at the project's path. Start Claude with `claude` and log in the first time. The login is stored in `claude-config` and shared by all projects. The container is removed when you exit.
+The project folder must be the top of a git repository, because its `.git` is mounted read-only. In a folder without git, the script offers to run `git init`. It refuses to run in a subfolder of a repository or inside a `.git` folder.
+
+Apart from `git init`, nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Every run creates the `claude-config` volume if it is missing, then opens a shell in the container at the project's path. Start Claude with `claude` and log in the first time. The login is stored in `claude-config` and shared by all projects. The container is removed when you exit.
 
 The sandbox files stay outside the project, so the agent cannot change them. The exception is when the project is this repository: an edited `podman-compose.yaml` takes effect on the next run.
 
 ## Manual usage (without the script)
 
-Run all commands from the project folder. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
+Run all commands from the top of the project's git repository (run `git init` first if needed). Its `.git` is mounted read-only, and podman-compose would create an empty `.git` folder if it were missing. The project is mounted at the same path inside the container (`PROJECT_DIR`), so Claude keeps memory and history separate for each project.
 
 The compose file is used from the cloned repository, here `~/claude-sandbox`. Nothing is copied into the project.
 
@@ -67,7 +69,7 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f ~/cl
 
 - [x] Stop the agent from editing its own sandbox config. `.claude-sandbox/podman-compose.yaml` is inside the mounted project and is read on every run. Build one image from this repo and keep the compose file outside the project, or mount `.claude-sandbox` read-only.
 - [x] Remove `.claude-sandbox` from the project. The script now uses the compose file and Containerfile from its own folder and builds one shared image.
-- [ ] Guard against code planted for the host: `.git/hooks`, `.git/config` (`core.hooksPath`, `core.fsmonitor`), Makefiles, `.envrc`. At least mount `.git/hooks` read-only, or document the risk.
+- [ ] Guard against code planted for the host. `.git` is read-only, but the agent can still `git init` a subfolder and add hooks or `core.fsmonitor` there, or edit Makefiles and `.envrc`. Document the risk.
 - [x] Drop `U` from the project bind mount (keep it on named volumes). It recursively chowns the host project tree.
 - [ ] Add hardening: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, `pids_limit`. Check how krun handles these.
 - [ ] Consider restricting outbound network. Check the claim that krun bypasses host nftables unless `krun.use_passt` is set.

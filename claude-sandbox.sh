@@ -37,6 +37,8 @@ if [ ! -f "$COMPOSE" ]; then
   exit 1
 fi
 
+command -v git >/dev/null || { echo "git is not installed." >&2; exit 1; }
+
 # The compose file mounts the current folder read-write, so only allow
 # real subfolders of our own $HOME (not $HOME itself, its parents, or other homes).
 home="$(cd "$HOME" && pwd -P)"
@@ -52,6 +54,38 @@ case "$here/" in
     exit 1
     ;;
 esac
+
+# The project's .git is mounted read-only (see podman-compose.yaml), so the
+# project must be the top of its own git repository. Look only at repositories
+# below $HOME (a dotfiles repo in ~ does not count) and ignore any GIT_DIR or
+# GIT_WORK_TREE from the environment.
+unset GIT_DIR GIT_WORK_TREE
+export GIT_CEILING_DIRECTORIES="$home"
+
+# Inside .git (or a bare repository), the repository's internals would be
+# mounted read-write.
+if [[ "$here/" == */.git/* ]] || [ "$(git rev-parse --is-inside-git-dir 2>/dev/null)" = true ]; then
+  echo "Refusing to run inside a git folder ($here): cd into the project folder." >&2
+  exit 1
+fi
+
+if top="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  # In a subfolder, the repository's .git would not be mounted at all.
+  if [ "$top" != "$here" ]; then
+    echo "$here is inside the git repository $top. Run $(basename "$0") from $top instead." >&2
+    exit 1
+  fi
+else
+  # read fails at end of input, but still sets answer to what it got.
+  read -r -p "No git repository in $here. Run git init? [y/N] " answer || true
+  case "$answer" in
+    [yY]|[yY][eE][sS]) git init -q ;;
+    *)
+      echo "Not starting: the sandbox needs a git repository to mount .git read-only." >&2
+      exit 1
+      ;;
+  esac
+fi
 
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
 # Mounted at the same path inside the container (see podman-compose.yaml).

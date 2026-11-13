@@ -17,6 +17,8 @@ services:
       # Mount the project at its host path, so Claude keeps memory, history and
       # settings per project (it keys them by path in ~/.claude/projects/).
       - ${PROJECT_DIR:?set PROJECT_DIR to the absolute project path}:${PROJECT_DIR}:z
+      # Read-only, so the agent cannot commit or plant hooks that run on the host.
+      # The project must have a .git, or podman-compose creates an empty one.
       - ${PROJECT_DIR}/.git:${PROJECT_DIR}/.git:ro,z
       - project-name-venv-cache:/venv:U,z
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
