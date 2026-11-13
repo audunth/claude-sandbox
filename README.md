@@ -72,7 +72,8 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) PROJECT_DIR=$(pwd -P) podman-compose -f .cla
 
 ### Isolation
 
-- [ ] Stop the agent from editing its own sandbox config. `.claude-sandbox/podman-compose.yaml` is inside the mounted project and is read on every run. Build one image from this repo and keep the compose file outside the project, or mount `.claude-sandbox` read-only.
+- [x] Stop the agent from editing its own sandbox config. `.claude-sandbox/podman-compose.yaml` is inside the mounted project and is read on every run. Build one image from this repo and keep the compose file outside the project, or mount `.claude-sandbox` read-only.
+- [ ] .claude-sandbox is read-only. Consider hiding it or doing most outside the project.
 - [ ] Guard against code planted for the host: `.git/hooks`, `.git/config` (`core.hooksPath`, `core.fsmonitor`), Makefiles, `.envrc`. At least mount `.git/hooks` read-only, or document the risk.
 - [x] Drop `U` from the project bind mount (keep it on named volumes). It recursively chowns the host project tree.
 - [ ] Add hardening: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, `pids_limit`. Check how krun handles these.
