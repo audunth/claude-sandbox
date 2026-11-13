@@ -16,6 +16,8 @@ services:
       # Mount the project at its host path, so Claude keeps memory, history and
       # settings per project (it keys them by path in ~/.claude/projects/).
       - ${PROJECT_DIR:?set PROJECT_DIR to the absolute project path}:${PROJECT_DIR}:z
+      - ${PROJECT_DIR}/.git:${PROJECT_DIR}/.git:ro,z
+      - ${PROJECT_DIR}/.claude-sandbox:${PROJECT_DIR}/.claude-sandbox:ro,z
       - project-name-venv-cache:/venv:U,z
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
     working_dir: ${PROJECT_DIR}
@@ -28,6 +30,8 @@ services:
       - UV_PYTHON_INSTALL_DIR=/venv/python  # So that uv-managed python installations are not in home but cached in /venv
       - TERM=xterm-256color
       - COLORTERM=truecolor
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   project-name-venv-cache:
