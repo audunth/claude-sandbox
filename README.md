@@ -64,10 +64,11 @@ Each project's environment is a volume named after the project's path, such as `
 
 - [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.
 
-## Not installed yet (consider if needed)
+## Questions
 
-- pandoc (using just .tex for now)
-- any compilers (rust, c++, julia)
+- [ ] Does this setup allow for different agents to run in parallel on different projects?
+- [ ] Consider passing cores/ram as user options. Now it is hidden.
+- [ ] Should compilers for different languages (c++, julia, rust) be preinstalled?
 
 ## AI use
 
