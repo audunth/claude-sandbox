@@ -1,5 +1,8 @@
 # claude-sandbox
 
+A sandbox for Claude which allows for concurrent work from both inside and outside the sandbox while preventing accidental changes to the host system. 
+It should be safer than running on your main system directly but will not protect you from actively malicious code.
+
 Based on [Sandbox AI coding agents with microVMs on Fedora Linux](https://fedoramagazine.org/sandbox-ai-coding-agents-with-microvms-on-fedora-linux/) and [Docker/Podman AI CLI tools safe environment](https://www.bitdoze.com/docker-podman-ai-cli-tools-safe-environment/). Also contains tinytex to compile documents.
 
 ## Install and run
@@ -19,7 +22,7 @@ The script uses the `Containerfile` and `podman-compose.yaml` in its own folder 
 Then run it from a project folder below `$HOME` (not `$HOME` itself):
 
 ```bash
-csbx --build   # after changing the Containerfile
+csbx --build   # to upgrade Claude Code and uv, or after changing the Containerfile
 csbx           # every other run
 ```
 
@@ -27,7 +30,7 @@ Arguments after the script's own options are passed on to `claude`, for example 
 
 The project folder must be the top of a git repository, because its `.git` is mounted read-only. In a folder without git, the script offers to run `git init`. It refuses to run in a subfolder of a repository or inside a `.git` folder.
 
-Apart from `git init`, nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Every run creates the `claude-config` volume if it is missing, then starts Claude in the container. Log in the first time. The login is stored in `claude-config` and shared by all projects. The project is mounted at the same path in the container as on the host, so Claude still keeps memory and history separate for each project. The container is removed when Claude exits.
+Apart from `git init`, nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Claude Code does not update itself in the container, because the update would be lost when the container is removed. `--build` installs the newest Claude Code and uv instead, and reuses the other layers (Debian packages, TinyTeX) from the cache. Every run creates the `claude-config` volume if it is missing, then starts Claude in the container. Log in the first time. The login is stored in `claude-config` and shared by all projects. The project is mounted at the same path in the container as on the host, so Claude still keeps memory and history separate for each project. The container is removed when Claude exits.
 
 The sandbox files stay outside the project, so the agent cannot change them. The exception is when the project is this repository: an edited `podman-compose.yaml` takes effect on the next run.
 
@@ -47,24 +50,35 @@ Poetry and PDM also use `.venv` in the container (for example `uvx poetry instal
 
 Each project's environment is a volume named after the project's path, such as `claude-sandbox-venv-home-me-myproject`. `podman volume ls` lists them, and `podman volume rm` deletes one, for example after deleting the project.
 
+### Files that run on the host
+
+The sandbox keeps the agent's changes inside the project folder. It does not check what the agent writes there, and some files in the project run on the host without you starting the project's code:
+
+- Git hooks and config in a subfolder. The agent can `git init` a subfolder and add hooks or `core.fsmonitor` to its `.git`. They run whenever git runs in that subfolder, for example for a git-aware shell prompt or an editor.
+- Commit hooks that read the project. The project's `.git` is read-only, but pre-commit (`.pre-commit-config.yaml`), husky (`.husky/`) and lint-staged (`package.json`) take their commands from the project, and run on your next commit on the host. `git commit --no-verify` still runs `prepare-commit-msg` and `post-commit`; `git -c core.hooksPath=/dev/null commit` runs no hooks.
+- Build, test and editor configuration, such as `Makefile`, `latexmkrc`, `conftest.py`, `.vscode/` and Rust's `build.rs`. They run when you build, test or open the project on the host. direnv asks again when `.envrc` changes.
+- Symlinks. A link to a file outside the project does nothing in the container, but on the host it points at your real file.
+
+`git diff` does not show new files, and `git status` hides ignored ones. Look at `git status --ignored` and the diff before running anything from the project on the host, or run builds and tests in the sandbox (`csbx --shell`).
+
 ## TODO
 
 ### Isolation
 
-- [ ] Guard against code planted for the host. `.git` is read-only, but the agent can still `git init` a subfolder and add hooks or `core.fsmonitor` there, or edit Makefiles and `.envrc`. Document the risk.
+- [ ] Consider a `csbx --check` for the [files that run on the host](#files-that-run-on-the-host): compare content hashes of those files, nested `.git` folders and symlinks with the last approved state (kept outside the project), and run it when Claude exits (the script's final `exec` would have to go).
 - [ ] Add more hardening: `cap_drop: [ALL]` and `pids_limit` (`no-new-privileges` is already set). Check how krun handles these.
 - [ ] Consider restricting outbound network. Check the claim that krun bypasses host nftables unless `krun.use_passt` is set.
 
 ### Containerfile
 
-- [ ] Set `DISABLE_AUTOUPDATER=1` and rebuild to upgrade. Auto-updates are lost with `--rm` and downloaded again every session.
+- [x] Set `DISABLE_AUTOUPDATER=1` and rebuild to upgrade. Auto-updates are lost with `--rm` and downloaded again every session.
 - [ ] Consider adding `less jq make` (maybe `poppler-utils` for PDFs). Debian already has the GNU core tools.
 
 ### Script and README
 
 - [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.
 
-## Questions
+### Questions
 
 - [ ] Does this setup allow for different agents to run in parallel on different projects?
 - [ ] Consider passing cores/ram as user options. Now it is hidden.
@@ -72,7 +86,7 @@ Each project's environment is a volume named after the project's path, such as `
 
 ## AI use
 
-Claude was actively used in writing the shell script and removing escape routes.
+Claude was actively used in writing the shell script and hardening.
 
 ## Inspiration
 

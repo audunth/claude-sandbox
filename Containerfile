@@ -28,6 +28,13 @@ RUN mkdir -p /home/appuser/.local/bin
 # TinyTeX before Claude, so Claude updates reuse the TinyTeX layer
 RUN bash -o pipefail -c 'curl -fsSL https://tinytex.yihui.org/install-bin-unix.sh | sh'
 RUN tlmgr install revtex pgf textcase
+
+# The container is removed on exit, so Claude Code's own updates would be lost
+# and downloaded again every session. Upgrade by rebuilding instead: the script
+# passes a new UPGRADE_STAMP on --build, so podman reruns the steps below rather
+# than reuse their cached layers.
+ENV DISABLE_AUTOUPDATER=1
+ARG UPGRADE_STAMP
 RUN bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash'
 RUN bash -o pipefail -c 'curl -fsSL https://astral.sh/uv/install.sh | sh'
 

@@ -12,6 +12,7 @@ services:
       args:
         HOST_UID: "${HOST_UID}"  # use UID and GID from the host so that files created in the container have correct permissions
         HOST_GID: "${HOST_GID}"
+        UPGRADE_STAMP: "${UPGRADE_STAMP:-}"  # set by --build, so Claude Code and uv are reinstalled
     volumes:
       # Mount the project at its host path, so Claude keeps memory, history and
       # settings per project (it keys them by path in ~/.claude/projects/).

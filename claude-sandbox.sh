@@ -22,7 +22,8 @@ Usage: $(basename "$0") [--build] [--shell] [--] [ARGS...]
 
 Start Claude Code in the sandbox. ARGS are passed on to claude.
 
-  --build       build (or rebuild) the image from $SANDBOX_DIR, then run
+  --build       rebuild the image from $SANDBOX_DIR with the newest Claude Code
+                and uv, then run
   --shell       open bash instead of claude (ARGS are passed on to bash)
   --            end of options, e.g. '$(basename "$0") -- --help' for claude's help
   -h, --help    show this help
@@ -106,6 +107,9 @@ export PROJECT_DIR="$here"
 export VENV_VOLUME="claude-sandbox-venv$(printf %s "$here" | tr -c 'A-Za-z0-9_.-' '-')"
 
 if [ "$BUILD" -eq 1 ]; then
+  # A new value makes podman reinstall Claude Code and uv instead of reusing the
+  # cached layers (see the Containerfile). The layers before them stay cached.
+  export UPGRADE_STAMP="$(date +%s)"
   podman-compose -f "$COMPOSE" build
 fi
 
