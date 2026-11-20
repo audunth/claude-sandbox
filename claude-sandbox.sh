@@ -22,8 +22,8 @@ Usage: $(basename "$0") [--build] [--shell] [--] [ARGS...]
 
 Start Claude Code in the sandbox. ARGS are passed on to claude.
 
-  --build       rebuild the image from $SANDBOX_DIR with the newest Claude Code
-                and uv, then run
+  --build       rebuild the image from $SANDBOX_DIR, then run. Claude Code
+                (stable) and uv are reinstalled only if a newer version is out
   --shell       open bash instead of claude (ARGS are passed on to bash)
   --            end of options, e.g. '$(basename "$0") -- --help' for claude's help
   -h, --help    show this help
@@ -107,9 +107,21 @@ export PROJECT_DIR="$here"
 export VENV_VOLUME="claude-sandbox-venv$(printf %s "$here" | tr -c 'A-Za-z0-9_.-' '-')"
 
 if [ "$BUILD" -eq 1 ]; then
-  # A new value makes podman reinstall Claude Code and uv instead of reusing the
-  # cached layers (see the Containerfile). The layers before them stay cached.
-  export UPGRADE_STAMP="$(date +%s)"
+  command -v curl >/dev/null || { echo "curl is not installed." >&2; exit 1; }
+  # Look up the newest versions. Podman reinstalls Claude Code or uv only when
+  # its version differs from the cached layer's (see the Containerfile).
+  CLAUDE_VERSION="$(curl -fsSL https://downloads.claude.ai/claude-code-releases/stable)" || CLAUDE_VERSION=
+  UV_VERSION="$(curl -fsSL https://astral.sh/uv/install.sh | sed -n 's/^APP_VERSION="\(.*\)"$/\1/p')" || UV_VERSION=
+  # The versions go into a URL and a shell argument in the build, so accept
+  # only version numbers, not an error page or other unexpected content.
+  for v in "$CLAUDE_VERSION" "$UV_VERSION"; do
+    [[ "$v" =~ ^[0-9]+(\.[0-9]+)+(-[0-9A-Za-z.]+)?$ ]] || {
+      echo "Could not look up the newest Claude Code and uv versions. Check the network." >&2
+      exit 1
+    }
+  done
+  export CLAUDE_VERSION UV_VERSION
+  echo "Building with Claude Code $CLAUDE_VERSION and uv $UV_VERSION."
   podman-compose -f "$COMPOSE" build
 fi
 

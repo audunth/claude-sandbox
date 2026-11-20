@@ -30,13 +30,16 @@ RUN bash -o pipefail -c 'curl -fsSL https://tinytex.yihui.org/install-bin-unix.s
 RUN tlmgr install revtex pgf textcase
 
 # The container is removed on exit, so Claude Code's own updates would be lost
-# and downloaded again every session. Upgrade by rebuilding instead: the script
-# passes a new UPGRADE_STAMP on --build, so podman reruns the steps below rather
-# than reuse their cached layers.
+# and downloaded again every session. Upgrade by rebuilding instead: on --build
+# the script passes the newest versions, and podman reruns a step below only
+# when its version changed. Each ARG comes right before its step, so a new uv
+# does not reinstall Claude Code. When the first run builds the image, there
+# are no versions: Claude Code installs from the stable channel, uv its newest.
 ENV DISABLE_AUTOUPDATER=1
-ARG UPGRADE_STAMP
-RUN bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash'
-RUN bash -o pipefail -c 'curl -fsSL https://astral.sh/uv/install.sh | sh'
+ARG CLAUDE_VERSION=stable
+RUN bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash -s "$CLAUDE_VERSION"'
+ARG UV_VERSION
+RUN bash -o pipefail -c 'curl -fsSL "https://astral.sh/uv/${UV_VERSION:+$UV_VERSION/}install.sh" | sh'
 
 WORKDIR /app
 

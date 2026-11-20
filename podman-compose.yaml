@@ -2,8 +2,8 @@ services:
   claude:
     annotations:
       run.oci.handler: krun
-      krun.ram_mib: "4096" # At least 4096
-      krun.cpus: "4" # At least 4
+      krun.ram_mib: "12288" # At least 4096
+      krun.cpus: "5" # At least 4
     user: "${HOST_UID}:${HOST_GID}"
     userns_mode: keep-id  # optional, for rootless host
     image: localhost/claude-sandbox:latest  # one image, shared by all projects
@@ -12,7 +12,10 @@ services:
       args:
         HOST_UID: "${HOST_UID}"  # use UID and GID from the host so that files created in the container have correct permissions
         HOST_GID: "${HOST_GID}"
-        UPGRADE_STAMP: "${UPGRADE_STAMP:-}"  # set by --build, so Claude Code and uv are reinstalled
+        # Set by --build to the newest versions. An empty value would override
+        # the Containerfile's default, so the stable channel is the default here.
+        CLAUDE_VERSION: "${CLAUDE_VERSION:-stable}"
+        UV_VERSION: "${UV_VERSION:-}"  # empty installs the newest uv
     volumes:
       # Mount the project at its host path, so Claude keeps memory, history and
       # settings per project (it keys them by path in ~/.claude/projects/).

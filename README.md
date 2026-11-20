@@ -30,7 +30,7 @@ Arguments after the script's own options are passed on to `claude`, for example 
 
 The project folder must be the top of a git repository, because its `.git` is mounted read-only. In a folder without git, the script offers to run `git init`. It refuses to run in a subfolder of a repository or inside a `.git` folder.
 
-Apart from `git init`, nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Claude Code does not update itself in the container, because the update would be lost when the container is removed. `--build` installs the newest Claude Code and uv instead, and reuses the other layers (Debian packages, TinyTeX) from the cache. Every run creates the `claude-config` volume if it is missing, then starts Claude in the container. Log in the first time. The login is stored in `claude-config` and shared by all projects. The project is mounted at the same path in the container as on the host, so Claude still keeps memory and history separate for each project. The container is removed when Claude exits.
+Apart from `git init`, nothing is written to the project folder. All projects share one image, `localhost/claude-sandbox`. The first run builds it, and `--build` rebuilds it. Claude Code does not update itself in the container, because the update would be lost when the container is removed. `--build` looks up the newest stable Claude Code and the newest uv instead, and reinstalls each only if its version changed. The other layers (Debian packages, TinyTeX) come from the cache. Every run creates the `claude-config` volume if it is missing, then starts Claude in the container. Log in the first time. The login is stored in `claude-config` and shared by all projects. The project is mounted at the same path in the container as on the host, so Claude still keeps memory and history separate for each project. The container is removed when Claude exits.
 
 The sandbox files stay outside the project, so the agent cannot change them. The exception is when the project is this repository: an edited `podman-compose.yaml` takes effect on the next run.
 
@@ -82,6 +82,7 @@ The sandbox keeps the agent's changes inside the project folder. It does not che
 
 - [ ] Does this setup allow for different agents to run in parallel on different projects?
 - [ ] Consider passing cores/ram as user options. Now it is hidden.
+- [ ] Consider options for adding custom read-only directories, such as a common directory of sources.
 - [ ] Should compilers for different languages (c++, julia, rust) be preinstalled?
 
 ## AI use
