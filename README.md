@@ -69,11 +69,6 @@ The sandbox keeps the agent's changes inside the project folder. It does not che
 - [ ] Add more hardening: `cap_drop: [ALL]` and `pids_limit` (`no-new-privileges` is already set). Check how krun handles these.
 - [ ] Consider restricting outbound network. Check the claim that krun bypasses host nftables unless `krun.use_passt` is set.
 
-### Containerfile
-
-- [x] Set `DISABLE_AUTOUPDATER=1` and rebuild to upgrade. Auto-updates are lost with `--rm` and downloaded again every session.
-- [ ] Consider adding `less jq make` (maybe `poppler-utils` for PDFs). Debian already has the GNU core tools.
-
 ### Script and README
 
 - [ ] Check the minimum libkrun version (>= 1.8?) and add it to the requirements in the README.

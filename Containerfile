@@ -5,7 +5,7 @@ ARG HOST_GID=1000
 
 # perl, curl and xz-utils are needed by the TinyTeX installer
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends bash ca-certificates curl git perl python3 python3-venv xz-utils && \
+    apt-get install -y --no-install-recommends bash ca-certificates curl git perl python3 python3-venv xz-utils pandoc ghostscript poppler-utils less jq make&& \
     rm -rf /var/lib/apt/lists/*
 
 # Create group and user matching host UID/GID
