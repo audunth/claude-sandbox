@@ -3,7 +3,7 @@ services:
     annotations:
       run.oci.handler: krun
       krun.ram_mib: "12288" # At least 4096
-      krun.cpus: "5" # At least 4
+      krun.cpus: "4" # At least 4
     user: "${HOST_UID}:${HOST_GID}"
     userns_mode: keep-id  # optional, for rootless host
     image: localhost/claude-sandbox:latest  # one image, shared by all projects
