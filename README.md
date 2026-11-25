@@ -50,6 +50,23 @@ Poetry and PDM also use `.venv` in the container (for example `uvx poetry instal
 
 Each project's environment is a volume named after the project's path, such as `claude-sandbox-venv-home-me-myproject`. `podman volume ls` lists them, and `podman volume rm` deletes one, for example after deleting the project.
 
+### Project setup
+
+(This is just how I do it.)
+
+I have one github repo for any numerics and figure generating code ( audunth/project-code ) and one for the mannuscript (audunth/project-manuscript) which is linked to an overleaf-project. These are separate as the code does not belong on overleaf, the code should be published to zenodo at some point, and manuscript files don't belong on zenodo. 
+
+In the project directory, 
+
+```
+git init
+git submodule add git@github.com:audunth/project-code
+git submodule add git@github.com:audunth/project-manuscript
+git commit -m 'submodules added'
+```
+
+In each submodule, do changes and git actions as normal.
+
 ### Files that run on the host
 
 The sandbox keeps the agent's changes inside the project folder. It does not check what the agent writes there, and some files in the project run on the host without you starting the project's code:
