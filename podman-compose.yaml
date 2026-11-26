@@ -26,8 +26,9 @@ services:
       - claude-config:/home/appuser/.claude:U,z  # persistent claude credentials/config
       # The container's own .venv, in a volume per project. It hides the host's
       # .venv, so the agent cannot change it and the host never runs what the
-      # agent installs. If the host has no .venv, an empty one is created as the
-      # mount point.
+      # agent installs. claude-sandbox.sh creates an empty .venv as the mount
+      # point if the host has none, because one created by podman would be
+      # owned by the container's root (a subordinate UID on the host).
       - venv:${PROJECT_DIR}/.venv:U,z
       - uv:/uv:U,z  # uv's cache and Python installs, shared by all projects
     working_dir: ${PROJECT_DIR}

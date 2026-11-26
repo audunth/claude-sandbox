@@ -98,6 +98,13 @@ else
   esac
 fi
 
+# The container's own .venv is mounted over the project's .venv (see
+# podman-compose.yaml). If the folder is missing, podman creates the mount
+# point as the container's root, which on the host is one of your subordinate
+# UIDs, so uv and other tools on the host cannot write to it. Create it here,
+# owned by you.
+mkdir -p .venv
+
 # The variables below are needed for the build too: podman-compose expands
 # every variable in the compose file before running any command.
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
